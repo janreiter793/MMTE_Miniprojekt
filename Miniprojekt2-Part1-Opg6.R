@@ -3,7 +3,6 @@ library(MatrixExtra)
 library(magrittr)
 library(future.apply)
 library(microbenchmark)
-library(ggplot2)
 set.seed(1)
 
 # Parameters
@@ -18,17 +17,10 @@ profile.likelihood <- function(a, y, X, i, j, maximize = T) {
   n <- length(y)
   
   # Obtain B^-1 on the basis of the given a
-  x <- numeric(n * (n + 1) / 2)
-  i <- numeric(n * (n + 1) / 2)
-  j <- numeric(n * (n + 1) / 2)
-  abs <- a^(1:n - 1)
-  for(k in 1:n) {
-    i[(((k - 1) * k / 2) + 1):(k * (k + 1) / 2)] <- rep(k, k)
-    j[(((k - 1) * k / 2) + 1):(k * (k + 1) / 2)] <- 1:k
-    x[(((k - 1) * k / 2) + 1):(k * (k + 1) / 2)] <- abs[1:k] %>% rev
-  }
-  B <- sparseMatrix(i = i, j = j, x = x, dims = c(n, n))
-  Binv <- B %>% solve
+  ii <- c(1:n, 2:n)
+  jj <- c(1:n, 1:(n - 1))
+  Binvij <- c(rep(1, n), rep(-a, n - 1))
+  Binv <- sparseMatrix(i = ii, j = jj, x = Binvij, dims = c(n, n))
   
   # Obtain sqrt(D^-1). D is diagonal, hence, symmetric. Therefore sqrt-matrix is
   # just the sqrt of all the entries of D.
@@ -78,17 +70,10 @@ simulate <- function(a, n, beta = BETA, tau2 = TAU2, N = SIM_N) {
   tau2_estimates  <- numeric(N)
   
   # Obtain B^-1 on the basis of the true parameter a
-  i <- numeric(n * (n + 1) / 2)
-  j <- numeric(n * (n + 1) / 2)
-  x <- numeric(n * (n + 1) / 2)
-  abs <- a^(1:n - 1)
-  for(k in 1:n) {
-    i[(((k - 1) * k / 2) + 1):(k * (k + 1) / 2)] <- rep(k, k)
-    j[(((k - 1) * k / 2) + 1):(k * (k + 1) / 2)] <- 1:k
-    x[(((k - 1) * k / 2) + 1):(k * (k + 1) / 2)] <- abs[1:k] %>% rev
-  }
-  B <- sparseMatrix(i = i, j = j, x = x, dims = c(n, n))
-  Binv <- B %>% solve
+  ii <- c(1:n, 2:n)
+  jj <- c(1:n, 1:(n - 1))
+  Binvij <- c(rep(1, n), rep(-a, n - 1))
+  Binv <- sparseMatrix(i = ii, j = jj, x = Binvij, dims = c(n, n))
   
   # Obtain D^-1/2
   D <- sparseMatrix(i = 1:n, j = 1:n, 
