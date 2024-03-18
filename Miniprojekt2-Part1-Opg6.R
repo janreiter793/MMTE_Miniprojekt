@@ -8,9 +8,9 @@ set.seed(1)
 # Parameters
 TAU2  <- 1
 BETA  <- c(3, 2)
-SIM_N <- 1000
+SIM_N <- 1000     # Takes roughly 1½ minutes to run with SIM_N <- 1000
 BENCHMARK <- FALSE
-BENCHMARK_ITER <- 100
+BENCHMARK_ITER <- 1
 
 # Profile likelihood procedure
 profile.likelihood <- function(a_hat, y, X, maximize = T) {
