@@ -141,8 +141,6 @@ res[[2]]$beta1 %>% hist(main = "Distribution for beta1_hat, (a = 0.5, n = 20)", 
 res[[2]]$beta2 %>% hist(main = "Distribution for beta2_hat, (a = 0.5, n = 20)", breaks = 50); grid()
 res[[2]]$tau2 %>% hist(main = "Distribution for tau2_hat, (a = 0.5, n = 20)", breaks = 50); grid()
 
-res[[2]]$a %>% mean
-
 # Simulation study with a = 0.99, n = 20
 res[[3]]$a %T>% qqnorm(main = "Distribution for a_hat, (a = 0.99, n = 20)") %>% qqline; grid()
 res[[3]]$beta1 %T>% qqnorm(main = "Distribution for beta1_hat, (a = 0.99, n = 20)") %>% qqline; grid()
