@@ -4,25 +4,23 @@ library(magrittr)
 set.seed(1)
 
 # Profile likelihood procedure
-profile.likelihood <- function(a, y, X, maximize = T) {
+profile.likelihood <- function(a_hat, y, X, maximize = T) {
   if(maximize) {
-    print(paste("Running profile likelihood with a =", round(a, 3)))
+    print(paste("Running profile likelihood with a =", round(a_hat, 3)))
   }
     
   n <- length(y)
   
-  print(a)
-  
   # Obtain B^-1 on the basis of the given a
   ii <- c(1:n, 2:n)
   jj <- c(1:n, 1:(n - 1))
-  Binvij <- c(rep(1, n), rep(-a, n - 1))
+  Binvij <- c(rep(1, n), rep(-a_hat, n - 1))
   Binv <- sparseMatrix(i = ii, j = jj, x = Binvij, dims = c(n, n))
 
   # Obtain sqrt(D^-1). D is diagonal, hence, symmetric. Therefore sqrt-matrix is
   # just the sqrt of all the entries of D.
   D <- sparseMatrix(i = 1:n, j = 1:n, 
-                    x = c(1 / (1 - a^2), rep(1, n - 1)), 
+                    x = c(1 / (1 - a_hat^2), rep(1, n - 1)), 
                     dims = c(n, n))
   sqrtDinv <- D %>% sqrt %>% solve
   
@@ -48,7 +46,7 @@ profile.likelihood <- function(a, y, X, maximize = T) {
   } else {
       #return likelihood of data y given a as well as fitted coeffiecients and variance
     return(list(log.likelihood = as.numeric(logLikY), 
-                a              = a,
+                a              = a_hat,
                 beta           = coef(fit), 
                 tau.sq         = sigma(fit)^2))
   }
@@ -72,11 +70,6 @@ sqrtD <- D %>% sqrt
 
 nu <- sqrt(tau_sqrd) * sqrtD %*% rnorm(n) # Droot inverse of Dinvroot and Binv defined as above
 U <- solve(Binv, nu)                      # This corresponds to computing U=B eps
-
-plot(U, type="l") ;grid() # Take a look at simulated errors
-mean(U)
-var(as.numeric(U))
-acf(as.numeric(U)); grid()
 
 # Generate data
 x <- rnorm(n)
