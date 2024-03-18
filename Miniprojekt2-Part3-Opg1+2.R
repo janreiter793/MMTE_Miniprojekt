@@ -161,3 +161,5 @@ for(i in 1:N_SIM) {
   unrestricted_sim <- logLik_unrestrictedModel(y_simulated, X)
   Qs[i] <- -2 * (restricted_sim - unrestricted_sim)
 }
+
+p_val <- 1 - mean(Qs < Q)
