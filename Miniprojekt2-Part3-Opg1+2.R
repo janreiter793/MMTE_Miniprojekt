@@ -2,7 +2,7 @@ library(Matrix)
 library(magrittr)
 library(future.apply)
 
-# Parameters
+# Parameters (With N_SIM = 1000 and N_CORES = 8, run ~ 45 minutes)
 N_SIM <- 1000
 N_CORES <- 8
 
@@ -183,6 +183,6 @@ res <- future_lapply(as.list(1:N_CORES), work)
 Qs <- res %>% unlist
 
 1 - mean(Qs[Qs > 0] < Q) # When run with N_SIM = 1000, N_CORES = 8 (becomes 4),
-                         # we optain a p-value of 0.01854243. At 7 times the
+                         # we optain a p-value of 0.01853243. At 7 times the
                          # optimization failed. Might be because of non-invertible
                          # matrices.
