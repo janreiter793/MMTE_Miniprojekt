@@ -1,9 +1,13 @@
 library(Matrix)
-library(MatrixExtra)
 library(magrittr)
+library(future.apply)
 
 # Parameters
-N_SIM <- 100
+N_SIM <- 1000
+N_CORES <- 8
+
+# Reconfiguring N_CORES if set too high
+N_CORES <- min(c(N_CORES, parallel::detectCores() / 2))
 
 # Profile likelihood procedure for sigma = 0
 profile.likelihood <- function(a_hat, y, X, maximize = T) {
@@ -75,20 +79,20 @@ neg.log.profile.likelihood <- function(theta, y, X, minimize=T){
   #compute \hat \beta(\theta)
   #(X^T W^{-1} X)^{-1} X^\T W^{-1} y
   #using Cholesky factor CholQtilde
-  u <- solve(L, Q %*% y)
-  Winvy <- solve(CholQtilde) %*% u
+  #Winvy <- solve(CholQtilde) %*% u
+  Winvy <- solve(CholQtilde, solve(L, Q %*% y))
   
   Xtilde <- as.matrix(cbind(rep(1, n), as.matrix(X)))
+
+  # WinvX <- solve(CholQtilde) %*% U
+  WinvX <- solve(CholQtilde, solve(L, Q %*% Xtilde))
   
-  U <- solve(L, Q %*% Xtilde)
-  WinvX <- solve(CholQtilde) %*% U
-  
-  betahat <- solve(t(Xtilde) %*% WinvX) %*% t(Xtilde) %*% Winvy
+  Xtildet <- t(Xtilde)
+  betahat <- solve(Xtildet %*% WinvX, Xtildet %*% Winvy) 
   
   #compute \hat \sigma^2(\theta)
   residual <- y - Xtilde %*% betahat
-  u <- solve(L, Q %*% residual)
-  WinvRes <- solve(CholQtilde) %*% u
+  WinvRes <- solve(CholQtilde, solve(L, Q %*% residual))
   sigma2hat <- sum(residual * WinvRes) / n
   
   detQ <- det(Q)
@@ -118,18 +122,40 @@ logLik_unrestrictedModel <- function(y, X, show.estimates = F) {
   }
 }
 
+work <- function(num) {
+  Q_statistics <- numeric(N_SIM)
+  for(i in 1:N_SIM) {
+    nu <- sqrt(tau2_hat) * sqrtD %*% rnorm(n) # Droot inverse of Dinvroot and Binv defined as above
+    U <- solve(Binv, nu)                      # This corresponds to computing U=B eps
+    y_simulated <- mu + U
+    tryCatch({
+      restricted_sim <- logLik_restrictedModel(y_simulated, X)
+      unrestricted_sim <- logLik_unrestrictedModel(y_simulated, X)
+      Q_statistics[i] <- -2 * (restricted_sim - unrestricted_sim)
+    }, error = function(cond) {
+      print("An error occured, skipping to next simulation run.")  
+    }, warning = function(cond) {
+      print(paste("This warning was thrown:", cond))
+    })
+  }
+  
+  return(Q_statistics)
+}
+
 # Load data table
 data <- read.table("C:\\Users\\janre\\Documents\\uni\\8. Semester\\MMTE\\Miniprojekt_2\\consumption.txt", 
                    sep = "" , header = T)
 data %<>% as.data.frame 
 data$D %<>% factor
-data
 
 y <- data$elforbrug
 X <- data[,c(2,3)] %>% as.data.frame
 
 restricted <- logLik_restrictedModel(y, X, show.estimates = TRUE)
 unrestricted <- logLik_unrestrictedModel(y, X, show.estimates = TRUE)
+
+restricted
+unrestricted
 
 Q <- -2 * (restricted$log.likelihood - unrestricted[[1]])
 
@@ -150,16 +176,13 @@ D <- sparseMatrix(i = 1:n, j = 1:n,
                   dims = c(n, n))
 sqrtD <- D %>% sqrt
 
-Qs <- numeric(N_SIM)
-for(i in 1:N_SIM) {
-  print(paste("Running simulation no.", i, "out of", N_SIM))
-  nu <- sqrt(tau2_hat) * sqrtD %*% rnorm(n) # Droot inverse of Dinvroot and Binv defined as above
-  U <- solve(Binv, nu)                      # This corresponds to computing U=B eps
-  y_simulated <- mu + U
-  
-  restricted_sim <- logLik_restrictedModel(y_simulated, X)
-  unrestricted_sim <- logLik_unrestrictedModel(y_simulated, X)
-  Qs[i] <- -2 * (restricted_sim - unrestricted_sim)
-}
+Qs <- numeric(N_SIM * N_CORES)
 
-p_val <- 1 - mean(Qs < Q)
+plan(multisession, workers = N_CORES)
+res <- future_lapply(as.list(1:N_CORES), work)
+Qs <- res %>% unlist
+
+1 - mean(Qs[Qs > 0] < Q) # When run with N_SIM = 1000, N_CORES = 8 (becomes 4),
+                         # we optain a p-value of 0.01854243. At 7 times the
+                         # optimization failed. Might be because of non-invertible
+                         # matrices.
